@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WhichOne — викторины</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%23106650'/%3E%3Ctext x='10' y='29' font-size='29' fill='white'%3E?%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<header>
+  <a class="brand" href="/">WhichOne<span>Учись. Выбирай. Узнавай результат.</span></a>
+  <a href="/swagger-ui.html">Документация API ↗</a>
+</header>
+<main>
+  <section class="hero">
+    <p class="eyebrow">Итоговый проект · Spring Boot</p>
+    <h1>Твой следующий вопрос<br>начинается здесь.</h1>
+    <p>Создавай обучающие и личностные викторины. Проходи опубликованные квизы и наблюдай за своими результатами.</p>
+  </section>
+  <p id="status" role="status" aria-live="polite">Лента доступна всем. Для создания и прохождения войди в аккаунт.</p>
+  <div class="columns">
+    <section class="panel">
+      <h2>1. Аккаунт</h2>
+      <form id="auth-form">
+        <label for="username">Имя: 3–30 латинских букв, цифр или _</label>
+        <input id="username" name="username" autocomplete="username" minlength="3" maxlength="30" required>
+        <label for="password">Пароль: от 10 символов</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" minlength="10" maxlength="72" required>
+        <div class="actions">
+          <button type="submit">Войти</button>
+          <button type="button" id="register" class="secondary">Зарегистрироваться</button>
+        </div>
+      </form>
+      <p id="account">Вход ещё не выполнен.</p>
+      <button id="logout" class="secondary" hidden>Выйти из демонстрации</button>
+      <p class="note">Токен хранится только в памяти этой страницы. После обновления страницы нужно войти снова.</p>
+    </section>
+    <section class="panel">
+      <h2>2. Готовые примеры</h2>
+      <p>Создай два своих опубликованных квиза: «Основы Java» и «Как ты учишься?». Затем выбери квиз в ленте.</p>
+      <button id="seed" disabled>Создать два примера</button>
+      <h3>Твои результаты</h3>
+      <div class="actions">
+        <button id="statistics" class="secondary" disabled>Статистика</button>
+        <button id="history" class="secondary" disabled>История попыток</button>
+      </div>
+      <pre id="personal-output">Здесь появятся результаты твоих запросов.</pre>
+    </section>
+  </div>
+  <section class="panel">
+    <div class="section-heading"><h2>3. Лента викторин</h2><button id="refresh" class="secondary">Обновить</button></div>
+    <div id="feed" class="quiz-grid"></div>
+  </section>
+  <section id="play-panel" class="panel" hidden>
+    <h2 id="quiz-title"></h2>
+    <p id="quiz-description"></p>
+    <form id="attempt-form">
+      <div id="questions"></div>
+      <button id="submit-attempt" type="submit" disabled>Отправить ответы</button>
+    </form>
+    <div id="result" role="status" aria-live="polite"></div>
+  </section>
+  <section class="panel">
+    <h2>4. Создай собственный квиз</h2>
+    <p>Редактор принимает полный JSON определения. Правильность и веса задаёт автор, а читатель получает только тексты вариантов. После публикации квиз сохраняется окончательно.</p>
+    <div class="actions">
+      <button id="educational-template" class="secondary">Шаблон обучающего</button>
+      <button id="personality-template" class="secondary">Шаблон личностного</button>
+      <button id="mine" class="secondary" disabled>Мои квизы</button>
+    </div>
+    <label for="definition">Определение квиза</label>
+    <textarea id="definition" spellcheck="false" rows="15"></textarea>
+    <label for="draft-id">ID черновика для изменения, публикации или удаления</label>
+    <input id="draft-id" type="number" min="1" inputmode="numeric">
+    <div class="actions">
+      <button id="create-draft" disabled>Создать черновик</button>
+      <button id="update-draft" class="secondary" disabled>Заменить черновик</button>
+      <button id="publish-draft" class="secondary" disabled>Опубликовать окончательно</button>
+      <button id="delete-draft" class="secondary" disabled>Удалить черновик</button>
+    </div>
+  </section>
+</main>
+<footer>WhichOne · Сервер проверяет ответы, права и результаты · <a href="/swagger-ui.html">OpenAPI</a></footer>
+</body>
+</html>

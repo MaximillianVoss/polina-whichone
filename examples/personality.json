@@ -1,0 +1,19 @@
+{
+  "title": "Как ты учишься?",
+  "description": "При равенстве побеждает первый объявленный исход.",
+  "type": "PERSONALITY",
+  "outcomes": [
+    {"code": "PLANNER", "label": "Планировщик", "description": "Тебе нравится сначала составить план."},
+    {"code": "EXPLORER", "label": "Исследователь", "description": "Тебе нравится исследовать через практику."}
+  ],
+  "questions": [
+    {"text": "С чего ты начинаешь новую тему?", "points": 0, "options": [
+      {"text": "Составляю план", "correct": false, "outcomeCode": "PLANNER", "weight": 2},
+      {"text": "Пробую пример", "correct": false, "outcomeCode": "EXPLORER", "weight": 2}
+    ]},
+    {"text": "Как тебе удобнее закреплять знания?", "points": 0, "options": [
+      {"text": "По расписанию", "correct": false, "outcomeCode": "PLANNER", "weight": 2},
+      {"text": "Через эксперименты", "correct": false, "outcomeCode": "EXPLORER", "weight": 2}
+    ]}
+  ]
+}

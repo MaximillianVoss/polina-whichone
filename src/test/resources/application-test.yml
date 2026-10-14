@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:whichone-tests;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+whichone:
+  jwt:
+    # A test-only value; it must never be used in an Internet deployment.
+    secret: test-only-signing-key-for-whichone-tests-2026
