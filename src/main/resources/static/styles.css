@@ -25,6 +25,8 @@ textarea { font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; res
 input[type="radio"] { width: auto; margin-right: 9px; }
 button { border: 1px solid var(--accent); background: var(--accent); color: #fff; padding: 10px 15px; font: inherit; border-radius: 8px; cursor: pointer; }
 button.secondary { background: var(--surface); color: var(--accent); }
+button.danger { background: var(--surface); color: #9e2929; border-color: #9e2929; }
+button.danger:not(:disabled):hover { background: #fae8e3; }
 button:disabled { opacity: .45; cursor: default; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 3px solid #d69932; outline-offset: 3px; }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
@@ -32,7 +34,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 #status { background: #e4ece4; border-left: 4px solid var(--accent); padding: 12px 15px; overflow-wrap: anywhere; }
 #status[data-error="true"] { border-left-color: #a23030; background: #fae8e3; color: #812525; }
 pre { font-size: 12px; line-height: 1.5; padding: 12px; border: 1px solid var(--line); border-radius: 8px; max-height: 280px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-.section-heading { display: flex; justify-content: space-between; align-items: start; gap: 15px; }
+.section-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px; }
+.section-heading h2 { margin: 0; }
+.feed-actions, .card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#feed-status:empty { margin: 0; }
+#feed-status[data-error="true"] { color: #812525; }
 .quiz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 15px; }
 .quiz-card { border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-wrap: anywhere; }
 .quiz-card h3 { margin: 0 0 10px; }

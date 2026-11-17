@@ -4,6 +4,7 @@ import com.whichone.domain.*;
 import com.whichone.dto.ApiDtos.*;
 import com.whichone.exception.ApiException;
 import com.whichone.repository.QuizRepository;
+import com.whichone.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,9 +17,11 @@ import java.util.Locale;
 public class QuizService {
     private final QuizRepository quizzes;
     private final AuthService auth;
-    public QuizService(QuizRepository quizzes, AuthService auth) {
+    private final UserRepository users;
+    public QuizService(QuizRepository quizzes, AuthService auth, UserRepository users) {
         this.quizzes = quizzes;
         this.auth = auth;
+        this.users = users;
     }
 
     public QuizView create(String username, QuizInput input) {
@@ -45,6 +48,43 @@ public class QuizService {
         return view(quizzes.saveAndFlush(quiz));
     }
 
+    public void archive(long id, String username) {
+        var quiz = ownedLocked(id, username);
+        if (!quiz.isPublished()) {
+            throw new ApiException(HttpStatus.CONFLICT, "Use draft deletion for an unpublished quiz.");
+        }
+        quiz.archive();
+    }
+
+    public int archivePublished(String username) {
+        var author = auth.requireUser(username);
+        var active = quizzes.findActivePublishedForUpdate(author.getId());
+        active.forEach(Quiz::archive);
+        return active.size();
+    }
+
+    public int seed(String username) {
+        // Serialize seed requests for this author, including requests from multiple tabs.
+        var author = lockAuthor(username);
+        int created = 0;
+        for (var input : DemoQuizzes.definitions()) {
+            if (quizzes.hasActiveDemo(author.getId(), input.type(), input.title(), input.description())) continue;
+            validateDefinition(input);
+            var quiz = new Quiz(author);
+            fill(quiz, input);
+            quiz.markDemo();
+            quiz.publish();
+            quizzes.save(quiz);
+            created++;
+        }
+        return created;
+    }
+
+    private AppUser lockAuthor(String username) {
+        return users.findForQuizManagement(username)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "Account is unavailable."));
+    }
+
     public void delete(long id, String username) {
         var quiz = ownedLocked(id, username);
         requireDraft(quiz);
@@ -54,18 +94,18 @@ public class QuizService {
 
     @Transactional(readOnly = true)
     public List<QuizSummary> published() {
-        return quizzes.findByPublishedTrueOrderByPublishedAtDesc().stream().map(this::summary).toList();
+        return quizzes.findByPublishedTrueAndArchivedFalseOrderByPublishedAtDesc().stream().map(this::summary).toList();
     }
 
     @Transactional(readOnly = true)
     public List<QuizSummary> mine(String username) {
         auth.requireUser(username);
-        return quizzes.findByAuthorUsernameOrderByCreatedAtDesc(username).stream().map(this::summary).toList();
+        return quizzes.findByAuthorUsernameAndArchivedFalseOrderByCreatedAtDesc(username).stream().map(this::summary).toList();
     }
 
     @Transactional(readOnly = true)
     public QuizView get(long id, String username) {
-        var quiz = quizzes.findById(id).orElseThrow(() -> notFound());
+        var quiz = quizzes.findById(id).filter(candidate -> !candidate.isArchived()).orElseThrow(this::notFound);
         if (!quiz.isPublished() && !quiz.getAuthor().getUsername().equals(username)) {
             // A stranger cannot enumerate unpublished quizzes.
             throw notFound();
@@ -75,7 +115,7 @@ public class QuizService {
 
     private Quiz ownedLocked(long id, String username) {
         auth.requireUser(username);
-        var quiz = quizzes.findLockedById(id).orElseThrow(() -> notFound());
+        var quiz = quizzes.findLockedById(id).filter(candidate -> !candidate.isArchived()).orElseThrow(this::notFound);
         if (!quiz.getAuthor().getUsername().equals(username)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Only the author may change this quiz.");
         }

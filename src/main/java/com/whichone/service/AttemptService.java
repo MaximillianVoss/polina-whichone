@@ -27,7 +27,7 @@ public class AttemptService {
 
     public AttemptView submit(long quizId, String username, AttemptInput input) {
         var user = auth.requireUser(username);
-        var quiz = quizzes.findById(quizId)
+        var quiz = quizzes.findForAttempt(quizId).filter(candidate -> !candidate.isArchived())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Quiz not found."));
         if (!quiz.isPublished()) {
             if (!quiz.getAuthor().getUsername().equals(username)) {

@@ -22,6 +22,10 @@ public class Quiz {
     @Column(nullable = false)
     private boolean published;
     @Column(nullable = false)
+    private boolean archived;
+    @Column(nullable = false)
+    private boolean demo;
+    @Column(nullable = false)
     private Instant createdAt;
     private Instant publishedAt;
     @Version
@@ -53,6 +57,8 @@ public class Quiz {
 
     public void addQuestion(Question question) { questions.add(question); }
     public void addOutcome(PersonalityOutcome outcome) { outcomes.add(outcome); }
+    public void archive() { archived = true; }
+    public void markDemo() { demo = true; }
 
     public void publish() {
         if (!published) {
@@ -67,6 +73,7 @@ public class Quiz {
     public String getDescription() { return description; }
     public QuizType getType() { return type; }
     public boolean isPublished() { return published; }
+    public boolean isArchived() { return archived; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getPublishedAt() { return publishedAt; }
     public List<Question> getQuestions() { return questions; }

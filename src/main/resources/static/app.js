@@ -2,14 +2,20 @@
 
 // The demo keeps a token in memory only. No passwords or tokens go to localStorage.
 let token = "";
+let username = "";
 let currentQuiz = null;
 let authEpoch = 0;
+let showingMine = false;
+let feedRequest = 0;
+let feedBusy = false;
+let ownPublished = false;
+let cardDeleteButtons = [];
 class StaleResponseError extends Error { }
 function checkEpoch(epoch) {
   if (epoch !== authEpoch) throw new StaleResponseError();
 }
 const byId = id => document.getElementById(id);
-const protectedButtons = ["seed", "statistics", "history", "mine", "create-draft",
+const protectedButtons = ["statistics", "history", "mine", "create-draft",
   "update-draft", "publish-draft", "delete-draft", "submit-attempt"];
 
 function showStatus(message, error = false) {
@@ -17,16 +23,42 @@ function showStatus(message, error = false) {
   byId("status").dataset.error = String(error);
 }
 
-function setAccount(auth = null) {
-  authEpoch++;
-  token = auth ? auth.accessToken : "";
+function showFeedStatus(message, error = false) {
+  byId("feed-status").textContent = message;
+  byId("feed-status").dataset.error = String(error);
+}
+
+function updateFeedButtons() {
+  byId("seed").disabled = !token || feedBusy;
+  byId("delete-all").disabled = !token || !ownPublished || feedBusy;
+  cardDeleteButtons.forEach(button => { button.disabled = feedBusy; });
+}
+
+function closeQuiz() {
   currentQuiz = null;
-  byId("feed").replaceChildren();
   byId("questions").replaceChildren();
   byId("play-panel").hidden = true;
   byId("quiz-title").textContent = "";
   byId("quiz-description").textContent = "";
   byId("result").textContent = "";
+  byId("submit-attempt").disabled = true;
+}
+
+function setAccount(auth = null) {
+  authEpoch++;
+  token = auth ? auth.accessToken : "";
+  username = auth ? auth.user.username : "";
+  showingMine = false;
+  feedBusy = false;
+  ownPublished = false;
+  cardDeleteButtons = [];
+  byId("feed").replaceChildren();
+  closeQuiz();
+  showFeedStatus("");
+  byId("feed-note").textContent = auth
+    ? "Удаление из ленты сохраняет историю прохождений."
+    : "Войди, чтобы добавить примеры или удалить свои квизы из ленты.";
+  updateFeedButtons();
   byId("draft-id").value = "";
   fillEditor(educationalTemplate());
   byId("personal-output").textContent = "Запроси результаты текущего аккаунта.";
@@ -66,10 +98,10 @@ async function api(path, method = "GET", body = undefined, epoch = authEpoch) {
   return data;
 }
 
-async function action(work) {
+async function action(work, reportError = showStatus) {
   const epoch = authEpoch;
   try { await work(epoch); } catch (error) {
-    if (!(error instanceof StaleResponseError) && epoch === authEpoch) showStatus(error.message, true);
+    if (!(error instanceof StaleResponseError) && epoch === authEpoch) reportError(error.message, true);
   }
 }
 
@@ -118,7 +150,9 @@ function element(tag, text, className) {
 
 function quizCards(quizzes, target, isMine = false) {
   target.replaceChildren();
-  if (!quizzes.length) { target.append(element("p", "Пока нет квизов. Создай свой или два готовых примера.")); }
+  cardDeleteButtons = [];
+  ownPublished = quizzes.some(quiz => quiz.published && quiz.author === username);
+  if (!quizzes.length) { target.append(element("p", "Пока нет квизов. Создай свой или добавь тестовые данные.")); }
   for (const quiz of quizzes) {
     const card = element("article", undefined, "quiz-card");
     card.append(element("p", quiz.type === "EDUCATIONAL" ? "Обучающий" : "Личностный", "tag"));
@@ -134,16 +168,59 @@ function quizCards(quizzes, target, isMine = false) {
         showStatus("Выбран черновик #" + quiz.id + ". Для изменения введи полный JSON определения.");
       }
     }));
-    card.append(open);
+    const actions = element("div", undefined, "card-actions");
+    actions.append(open);
+    if (username && quiz.author === username) {
+      const remove = element("button", "Удалить", "danger");
+      remove.type = "button";
+      remove.setAttribute("aria-label", "Удалить квиз «" + quiz.title + "»");
+      remove.addEventListener("click", () => {
+        const message = "Удалить квиз «" + quiz.title + "»?" +
+          (quiz.published ? " Сохранённые попытки останутся в истории." : "");
+        if (window.confirm(message)) manageFeed(epoch => deleteQuiz(quiz, epoch));
+      });
+      cardDeleteButtons.push(remove);
+      actions.append(remove);
+    }
+    card.append(actions);
     if (isMine) card.append(element("p", "ID " + quiz.id + " · " + (quiz.published ? "опубликован" : "черновик")));
     target.append(card);
   }
+  updateFeedButtons();
 }
 
-async function refreshFeed(epoch = authEpoch) {
-  const quizzes = await api("/api/quizzes", "GET", undefined, epoch);
+async function refreshFeed(epoch = authEpoch, mine = showingMine) {
+  const request = ++feedRequest;
+  const quizzes = await api(mine ? "/api/quizzes/mine" : "/api/quizzes", "GET", undefined, epoch);
   checkEpoch(epoch);
-  quizCards(quizzes, byId("feed"));
+  if (request !== feedRequest) return false;
+  showingMine = mine;
+  quizCards(quizzes, byId("feed"), mine);
+  return true;
+}
+
+function manageFeed(work) {
+  if (!token || feedBusy) return;
+  return action(async epoch => {
+    feedBusy = true;
+    updateFeedButtons();
+    showFeedStatus("");
+    try { await work(epoch); } finally {
+      if (epoch === authEpoch) {
+        feedBusy = false;
+        updateFeedButtons();
+      }
+    }
+  }, showFeedStatus);
+}
+
+async function deleteQuiz(quiz, epoch) {
+  const path = "/api/quizzes/" + quiz.id;
+  await api(quiz.published ? path + "/archive" : path, quiz.published ? "POST" : "DELETE", undefined, epoch);
+  if (currentQuiz?.id === quiz.id) closeQuiz();
+  if (byId("draft-id").value === String(quiz.id)) byId("draft-id").value = "";
+  await refreshFeed(epoch);
+  showFeedStatus(quiz.published ? "Квиз удалён из ленты." : "Черновик удалён.");
 }
 
 async function openQuiz(id, epoch = authEpoch) {
@@ -193,19 +270,21 @@ byId("logout").addEventListener("click", () => {
   setAccount(null);
   showStatus("Токен удалён из памяти страницы. Для нового запроса можно войти снова.");
 });
-byId("seed").addEventListener("click", () => action(async epoch => {
-  byId("seed").disabled = true;
-  try {
-    for (const definition of [educationalTemplate(), personalityTemplate()]) {
-      const quiz = await api("/api/quizzes", "POST", definition, epoch);
-      await api("/api/quizzes/" + quiz.id + "/publish", "POST", undefined, epoch);
-    }
-    await refreshFeed(epoch);
-    checkEpoch(epoch);
-    showStatus("Два примера опубликованы. Выбери квиз и отправь ответы.");
-  } finally { if (epoch === authEpoch) byId("seed").disabled = !token; }
+byId("seed").addEventListener("click", () => manageFeed(async epoch => {
+  const { count } = await api("/api/quizzes/demo", "POST", undefined, epoch);
+  await refreshFeed(epoch);
+  showFeedStatus(count ? "Добавлено тестовых квизов: " + count + "." : "Оба тестовых квиза уже в ленте.");
 }));
-byId("refresh").addEventListener("click", () => action(refreshFeed));
+byId("delete-all").addEventListener("click", () => {
+  if (!window.confirm("Удалить из ленты все твои опубликованные квизы? Черновики и история прохождений сохранятся.")) return;
+  manageFeed(async epoch => {
+    const { count } = await api("/api/quizzes/mine/archive", "POST", undefined, epoch);
+    if (currentQuiz?.published && currentQuiz.author === username) closeQuiz();
+    await refreshFeed(epoch);
+    showFeedStatus(count ? "Удалено из ленты: " + count + "." : "У тебя нет опубликованных квизов.");
+  });
+});
+byId("refresh").addEventListener("click", () => action(epoch => refreshFeed(epoch, false), showFeedStatus));
 byId("statistics").addEventListener("click", () => action(async epoch => {
   const result = await api("/api/me/statistics", "GET", undefined, epoch);
   checkEpoch(epoch);
@@ -239,10 +318,7 @@ byId("attempt-form").addEventListener("submit", event => {
 byId("educational-template").addEventListener("click", () => fillEditor(educationalTemplate()));
 byId("personality-template").addEventListener("click", () => fillEditor(personalityTemplate()));
 byId("mine").addEventListener("click", () => action(async epoch => {
-  const quizzes = await api("/api/quizzes/mine", "GET", undefined, epoch);
-  checkEpoch(epoch);
-  quizCards(quizzes, byId("feed"), true);
-  showStatus("Показаны твои черновики и опубликованные квизы.");
+  if (await refreshFeed(epoch, true)) showStatus("Показаны твои черновики и опубликованные квизы.");
 }));
 byId("create-draft").addEventListener("click", () => action(async epoch => {
   const quiz = await api("/api/quizzes", "POST", JSON.parse(byId("definition").value), epoch);

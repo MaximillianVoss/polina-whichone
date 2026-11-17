@@ -39,6 +39,7 @@ public final class ApiDtos {
 
     public record QuizSummary(long id, String author, String title, String description, QuizType type,
                               boolean published, int questionCount, Instant createdAt, Instant publishedAt) { }
+    public record QuizCount(int count) { }
     public record QuizView(long id, String author, String title, String description, QuizType type,
                            boolean published, Instant createdAt, Instant publishedAt,
                            List<QuestionView> questions, List<OutcomeView> outcomes) { }

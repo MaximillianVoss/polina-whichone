@@ -276,10 +276,64 @@ class WhichOneApiTest {
     }
 
     @Test
-    void flywaySecondMigrationIsNoOpAndRetainsUser() {
-        assertThat(flyway.info().applied()).hasSize(1);
+    void flywayRerunIsNoOpAndRetainsUser() {
+        assertThat(flyway.info().applied()).hasSize(2);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(users.findByUsername(username)).isPresent();
+    }
+
+    @Test
+    void authorCanRemovePublishedQuizWithoutErasingAnotherUsersAttempt() throws Exception {
+        var quiz = createEducational(token);
+        long id = quiz.path("id").asLong();
+        long draft = createEducational(token).path("id").asLong();
+        publish(id, token);
+        String reader = register("reader_" + username).path("accessToken").asText();
+        long attemptId = submit(quiz, reader, answers(quiz, 0, 0), 201).path("id").asLong();
+
+        call(post("/api/quizzes/" + id + "/archive"), 401);
+        call(post("/api/quizzes/" + id + "/archive").header("Authorization", bearer(reader)), 403);
+        call(post("/api/quizzes/" + draft + "/archive").header("Authorization", bearer(token)), 409);
+        call(post("/api/quizzes/" + id + "/archive").header("Authorization", bearer(token)), 204);
+
+        call(get("/api/quizzes/" + id), 404);
+        submit(quiz, reader, answers(quiz, 0, 0), 404);
+        assertThat(call(get("/api/quizzes"), 200)).noneMatch(item -> item.path("id").asLong() == id);
+        assertThat(call(get("/api/quizzes/mine").header("Authorization", bearer(token)), 200))
+                .noneMatch(item -> item.path("id").asLong() == id);
+        assertThat(call(get("/api/me/attempts/" + attemptId).header("Authorization", bearer(reader)), 200)
+                .path("quizId").asLong()).isEqualTo(id);
+        assertThat(call(get("/api/me/statistics").header("Authorization", bearer(reader)), 200)
+                .path("totalAttempts").asInt()).isEqualTo(1);
+    }
+
+    @Test
+    void demoSeedRefillsMissingQuizAndBulkRemovalKeepsForeignQuizzesAndDrafts() throws Exception {
+        String foreign = register("owner_" + username).path("accessToken").asText();
+        long foreignId = createEducational(foreign).path("id").asLong();
+        long draftId = createEducational(token).path("id").asLong();
+        publish(foreignId, foreign);
+        call(post("/api/quizzes/demo"), 401);
+        call(post("/api/quizzes/mine/archive"), 401);
+        assertThat(postCount("/api/quizzes/demo")).isEqualTo(2);
+        assertThat(postCount("/api/quizzes/demo")).isZero();
+        var mine = call(get("/api/quizzes/mine").header("Authorization", bearer(token)), 200);
+        assertThat(mine).filteredOn(item -> item.path("published").asBoolean())
+                .extracting(item -> item.path("type").asText()).containsExactlyInAnyOrder("EDUCATIONAL", "PERSONALITY");
+        long exampleId = java.util.stream.StreamSupport.stream(mine.spliterator(), false)
+                .filter(item -> item.path("published").asBoolean()).findFirst().orElseThrow().path("id").asLong();
+        call(post("/api/quizzes/" + exampleId + "/archive").header("Authorization", bearer(token)), 204);
+        assertThat(postCount("/api/quizzes/demo")).isEqualTo(1);
+        assertThat(postCount("/api/quizzes/mine/archive")).isEqualTo(2);
+        assertThat(postCount("/api/quizzes/mine/archive")).isZero();
+        call(get("/api/quizzes/" + foreignId), 200);
+        assertThat(call(get("/api/quizzes/mine").header("Authorization", bearer(token)), 200))
+                .extracting(item -> item.path("id").asLong()).containsExactly(draftId);
+        assertThat(postCount("/api/quizzes/demo")).isEqualTo(2);
+    }
+
+    private int postCount(String path) throws Exception {
+        return call(post(path).header("Authorization", bearer(token)), 200).path("count").asInt();
     }
 
     @Test

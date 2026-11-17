@@ -74,6 +74,29 @@ public class QuizController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/archive")
+    @SecurityRequirement(name = "BearerAuth")
+    @Operation(summary = "Remove your published quiz from the feed, keeping saved attempts")
+    public ResponseEntity<Void> archive(@PathVariable long id,
+                                      @Parameter(hidden = true) @AuthenticationPrincipal Jwt principal) {
+        quizzes.archive(id, principal.getSubject());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/mine/archive")
+    @SecurityRequirement(name = "BearerAuth")
+    @Operation(summary = "Remove all your published quizzes from the feed, keeping drafts and attempts")
+    public QuizCount archivePublished(@Parameter(hidden = true) @AuthenticationPrincipal Jwt principal) {
+        return new QuizCount(quizzes.archivePublished(principal.getSubject()));
+    }
+
+    @PostMapping("/demo")
+    @SecurityRequirement(name = "BearerAuth")
+    @Operation(summary = "Publish missing demo quizzes for the current author")
+    public QuizCount seed(@Parameter(hidden = true) @AuthenticationPrincipal Jwt principal) {
+        return new QuizCount(quizzes.seed(principal.getSubject()));
+    }
+
     @PostMapping("/{id}/attempts")
     @SecurityRequirement(name = "BearerAuth")
     @Operation(summary = "Submit one option per question and calculate the result",

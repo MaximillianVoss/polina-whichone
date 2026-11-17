@@ -38,10 +38,7 @@
       <p class="note">Токен хранится только в памяти этой страницы. После обновления страницы нужно войти снова.</p>
     </section>
     <section class="panel">
-      <h2>2. Готовые примеры</h2>
-      <p>Создай два своих опубликованных квиза: «Основы Java» и «Как ты учишься?». Затем выбери квиз в ленте.</p>
-      <button id="seed" disabled>Создать два примера</button>
-      <h3>Твои результаты</h3>
+      <h2>2. Твои результаты</h2>
       <div class="actions">
         <button id="statistics" class="secondary" disabled>Статистика</button>
         <button id="history" class="secondary" disabled>История попыток</button>
@@ -50,7 +47,16 @@
     </section>
   </div>
   <section class="panel">
-    <div class="section-heading"><h2>3. Лента викторин</h2><button id="refresh" class="secondary">Обновить</button></div>
+    <div class="section-heading">
+      <h2>3. Лента викторин</h2>
+      <div class="feed-actions">
+        <button id="refresh" class="secondary" type="button">Обновить</button>
+        <button id="seed" class="secondary" type="button" disabled>Заполнить тестовыми данными</button>
+        <button id="delete-all" class="danger" type="button" disabled>Удалить все мои</button>
+      </div>
+    </div>
+    <p id="feed-note" class="note">Войди, чтобы добавить примеры или удалить свои квизы из ленты.</p>
+    <p id="feed-status" class="note" role="status" aria-live="polite"></p>
     <div id="feed" class="quiz-grid"></div>
   </section>
   <section id="play-panel" class="panel" hidden>
